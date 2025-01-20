@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice/Text Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .back-button {
+            padding: 8px 16px;
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .back-button:hover {
+            background: #5a6268;
+        }
+
+        .communication-box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .message-area {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            resize: none;
+            font-size: 16px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .translation-output {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .status {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        h1, h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Voice/Text Interface</h1>
+            <a href="/" class="back-button">← Back to Home</a>
+        </div>
+        
+        <div class="communication-box">
+            <h2>Voice/Text Communication</h2>
+            <textarea class="message-area" id="textInput" placeholder="Type your message here or use voice input..."></textarea>
+            <div class="controls">
+                <button id="startSpeech">Start Speaking</button>
+                <button id="stopSpeech">Stop Speaking</button>
+                <button id="translate">Translate</button>
+            </div>
+            <div class="status" id="speechStatus">Speech recognition: Off</div>
+            <div class="translation-output" id="speechOutput">Translation will appear here...</div>
+        </div>
+    </div>
+
+    <script>
+        const startSpeechBtn = document.getElementById('startSpeech');
+        const stopSpeechBtn = document.getElementById('stopSpeech');
+        const speechStatus = document.getElementById('speechStatus');
+        const textInput = document.getElementById('textInput');
+        const translateBtn = document.getElementById('translate');
+        const speechOutput = document.getElementById('speechOutput');
+        let recognition = null;
+
+        // Initialize speech recognition
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onresult = (event) => {
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    }
+                }
+                if (finalTranscript) {
+                    textInput.value = finalTranscript;
+                }
+            };
+
+            recognition.onerror = (event) => {
+                speechStatus.textContent = 'Error: ' + event.error;
+            };
+        }
+
+        // Speech control buttons
+        startSpeechBtn.addEventListener('click', () => {
+            if (recognition) {
+                recognition.start();
+                speechStatus.textContent = 'Speech recognition: On';
+                startSpeechBtn.disabled = true;
+                stopSpeechBtn.disabled = false;
+            }
+        });
+
+        stopSpeechBtn.addEventListener('click', () => {
+            if (recognition) {
+                recognition.stop();
+                speechStatus.textContent = 'Speech recognition: Off';
+                startSpeechBtn.disabled = false;
+                stopSpeechBtn.disabled = true;
+            }
+        });
+
+        // Translation button
+        translateBtn.addEventListener('click', async () => {
+            const text = textInput.value;
+            if (text) {
+                try {
+                    const response = await fetch('/translate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ text })
+                    });
+                    
+                    const result = await response.json();
+                    speechOutput.textContent = `Translation: ${result.translation}`;
+                } catch (error) {
+                    console.error('Error translating text:', error);
+                    speechOutput.textContent = 'Error translating text';
+                }
+            }
+        });
+
+        // Initialize button states
+        stopSpeechBtn.disabled = true;
+    </script>
+</body>
+</html>
