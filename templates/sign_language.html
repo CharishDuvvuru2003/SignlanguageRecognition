@@ -104,15 +104,45 @@
             cursor: not-allowed;
         }
 
-        .translation-output {
-            width: 100%;
-            min-height: 100px;
-            padding: 10px;
-            background: #f8f9fa;
-            border: 1px solid #ddd;
+        .translation-container {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .translation-text {
+            flex: 1;
+        }
+        
+        .audio-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .audio-button {
+            padding: 8px;
+            background: #28a745;
+            color: white;
+            border: none;
             border-radius: 5px;
-            margin-bottom: 10px;
-            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .audio-button:hover {
+            background: #218838;
+        }
+        
+        .audio-button:disabled {
+            background: #cccccc;
+        }
+        
+        .audio-button svg {
+            width: 20px;
+            height: 20px;
         }
 
         .status {
@@ -138,7 +168,32 @@
                 <button id="stopCamera">Stop Camera</button>
             </div>
             <div class="status" id="signStatus">Camera status: Off</div>
-            <div class="translation-output" id="signOutput">Translation will appear here...</div>
+            <div class="translation-output">
+                <div class="translation-container">
+                    <div class="translation-text">
+                        <div id="englishText">English: ...</div>
+                        <button class="audio-button" id="playEnglish" disabled>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 5L6 9H2V15H6L11 19V5Z"/>
+                                <path d="M15.54 8.46C16.4774 9.39764 17.0039 10.6692 17.0039 11.995C17.0039 13.3208 16.4774 14.5924 15.54 15.53"/>
+                                <path d="M18.24 5.76C19.9179 7.43813 20.8622 9.67174 20.8622 12C20.8622 14.3283 19.9179 16.5619 18.24 18.24"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="translation-container">
+                    <div class="translation-text">
+                        <div id="hindiText" class="translation-hindi">हिंदी: ...</div>
+                        <button class="audio-button" id="playHindi" disabled>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 5L6 9H2V15H6L11 19V5Z"/>
+                                <path d="M15.54 8.46C16.4774 9.39764 17.0039 10.6692 17.0039 11.995C17.0039 13.3208 16.4774 14.5924 15.54 15.53"/>
+                                <path d="M18.24 5.76C19.9179 7.43813 20.8622 9.67174 20.8622 12C20.8622 14.3283 19.9179 16.5619 18.24 18.24"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -149,7 +204,62 @@
         const startCameraBtn = document.getElementById('startCamera');
         const stopCameraBtn = document.getElementById('stopCamera');
         const signStatus = document.getElementById('signStatus');
-        const signOutput = document.getElementById('signOutput');
+        const playEnglishBtn = document.getElementById('playEnglish');
+        const playHindiBtn = document.getElementById('playHindi');
+        const englishText = document.getElementById('englishText');
+        const hindiText = document.getElementById('hindiText');
+        let currentAudio = null;
+
+        function playAudio(url) {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            
+            const audio = new Audio(url);
+            audio.play();
+            currentAudio = audio;
+        }
+
+        playEnglishBtn.addEventListener('click', () => {
+            const text = englishText.textContent.replace('English: ', '');
+            fetch('/text_to_speech', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    text: text,
+                    language: 'english'
+                })
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                playAudio(url);
+            })
+            .catch(error => console.error('Error playing audio:', error));
+        });
+
+        playHindiBtn.addEventListener('click', () => {
+            const text = hindiText.textContent.replace('हिंदी: ', '');
+            fetch('/text_to_speech', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    text: text,
+                    language: 'hindi'
+                })
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                playAudio(url);
+            })
+            .catch(error => console.error('Error playing audio:', error));
+        });
         let stream = null;
         let isProcessing = false;
         let recognitionInterval = null;
@@ -238,7 +348,14 @@
                     const result = await response.json();
                     
                     if (result.success && result.prediction) {
-                        signOutput.textContent = `Translation: ${result.prediction}`;
+                        const english = result.prediction.english;
+                        const hindi = result.prediction.hindi;
+                        
+                        englishText.textContent = `English: ${english}`;
+                        hindiText.textContent = `हिंदी: ${hindi}`;
+                        
+                        playEnglishBtn.disabled = !english;
+                        playHindiBtn.disabled = !hindi;
                     }
                 } catch (error) {
                     console.error('Error sending frame:', error);
